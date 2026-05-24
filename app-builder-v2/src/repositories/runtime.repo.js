@@ -13,12 +13,11 @@ class RuntimeRepo {
       if (c.defaultValue !== undefined) def += ` DEFAULT ${c.defaultValue}`;
       return def;
     });
-    const sql = `CREATE TABLE IF NOT EXISTS ${tbl} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ${colDefs.join(',\n      ')},
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`;
+    const parts = ['id INTEGER PRIMARY KEY AUTOINCREMENT'];
+    if (colDefs.length) parts.push(...colDefs);
+    parts.push('created_at TEXT NOT NULL');
+    parts.push('updated_at TEXT NOT NULL');
+    const sql = `CREATE TABLE IF NOT EXISTS ${tbl} (\n      ${parts.join(',\n      ')}\n    )`;
     this.db.exec(sql);
     return tbl;
   }

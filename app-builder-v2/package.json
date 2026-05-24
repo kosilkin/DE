@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "test:smoke": "node scripts/smoke-test.js",
-    "test:ui": "npx playwright test scripts/ui-smoke-test.js",
+    "test:ui": "npx playwright test --config=playwright.config.js",
     "test:desktop": "node scripts/desktop-smoke-test.js",
     "build:win": "electron-builder --win --config electron-builder.json"
   },
