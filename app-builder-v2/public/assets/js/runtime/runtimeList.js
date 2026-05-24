@@ -19,13 +19,21 @@ const RuntimeList = {
       // resolve relation display values
       const relationFields = fields.filter(f => f.type === 'relation');
       const relationDisplayMap = {};
+      const allEntities = await callApi(() => api.entities.list(AppState.currentProject.id));
       for (const rf of relationFields) {
-        // find target entity via relations
-        try {
-          const opts = await callApi(() => api.runtime.relationOptions(null));
-        } catch {}
+        const targetName = rf.name.replace('_id', '');
+        const targetEntity = allEntities.find(e => e.name === targetName || e.name === targetName + 's');
+        if (targetEntity) {
+          try {
+            const opts = await callApi(() => api.runtime.relationOptions(targetEntity.id));
+            const map = {};
+            for (const o of opts) map[o.id] = o.display;
+            relationDisplayMap[rf.name] = map;
+          } catch {}
+        }
       }
 
+      this._relationDisplayMap = relationDisplayMap;
       this._renderTable(container, entity, fields, result);
     } catch (e) {
       if (e.message && e.message.includes('Нет доступа')) {
@@ -70,6 +78,9 @@ const RuntimeList = {
           let val = r[f.name];
           if (val === null || val === undefined) val = '';
           if (f.type === 'boolean') val = val ? 'Да' : 'Нет';
+          else if (f.type === 'relation' && this._relationDisplayMap[f.name] && val) {
+            val = this._relationDisplayMap[f.name][val] || `#${val}`;
+          }
           html += `<td>${esc(val)}</td>`;
         }
         html += `<td>
