@@ -77,6 +77,17 @@ app.whenReady().then(() => {
 
   createWindow();
   registerAllIpc(services, mainWindow);
+
+  // Support runtime-mode launch via environment variables (from shortcut)
+  const runtimeMode = process.env.APP_RUNTIME_MODE === '1';
+  const runtimeProjectId = process.env.APP_PROJECT_ID ? parseInt(process.env.APP_PROJECT_ID) : null;
+  if (runtimeMode && runtimeProjectId) {
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.executeJavaScript(
+        `window.__RUNTIME_PROJECT_ID = ${runtimeProjectId}; window.__RUNTIME_MODE = true;`
+      );
+    });
+  }
 });
 
 app.on('window-all-closed', () => {

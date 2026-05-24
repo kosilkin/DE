@@ -186,7 +186,52 @@ class ExportService {
     const readme = `# ${project.title}\n\n${project.description || ''}\n\nЭкспортировано: ${new Date().toISOString()}\n`;
     fs.writeFileSync(path.join(outputDir, 'README.md'), readme);
 
+    // Create launch shortcut
+    this._createShortcut(outputDir, project);
+
     return outputDir;
+  }
+
+  _createShortcut(outputDir, project) {
+    const appDir = path.resolve(path.join(__dirname, '..', '..'));
+    const isWin = process.platform === 'win32';
+
+    if (isWin) {
+      const batContent = `@echo off\r\ntitle ${project.title}\r\ncd /d "${appDir}"\r\nset APP_PROJECT_ID=${project.id}\r\nset APP_RUNTIME_MODE=1\r\nnpx electron .\r\n`;
+      fs.writeFileSync(path.join(outputDir, `${project.title}.bat`), batContent);
+    } else {
+      const shContent = `#!/bin/bash\ncd "${appDir}"\nAPP_PROJECT_ID=${project.id} APP_RUNTIME_MODE=1 npx electron .\n`;
+      const shPath = path.join(outputDir, `${project.title}.sh`);
+      fs.writeFileSync(shPath, shContent);
+      try { fs.chmodSync(shPath, '755'); } catch {}
+
+      const desktopContent = `[Desktop Entry]\nType=Application\nName=${project.title}\nExec=bash "${shPath}"\nTerminal=false\nCategories=Education;\n`;
+      fs.writeFileSync(path.join(outputDir, `${project.title}.desktop`), desktopContent);
+      try { fs.chmodSync(path.join(outputDir, `${project.title}.desktop`), '755'); } catch {}
+    }
+  }
+
+  createAppShortcut(desktopPath) {
+    const appDir = path.resolve(path.join(__dirname, '..', '..'));
+    const isWin = process.platform === 'win32';
+
+    if (isWin) {
+      const batPath = path.join(desktopPath, 'Конструктор ИС.bat');
+      const batContent = `@echo off\r\ntitle Конструктор ИС\r\ncd /d "${appDir}"\r\nnpx electron .\r\n`;
+      fs.writeFileSync(batPath, batContent);
+      return batPath;
+    } else {
+      const shPath = path.join(desktopPath, 'app-builder-v2.sh');
+      const shContent = `#!/bin/bash\ncd "${appDir}"\nnpx electron .\n`;
+      fs.writeFileSync(shPath, shContent);
+      try { fs.chmodSync(shPath, '755'); } catch {}
+
+      const desktopFilePath = path.join(desktopPath, 'Конструктор ИС.desktop');
+      const desktopContent = `[Desktop Entry]\nType=Application\nName=Конструктор ИС\nExec=bash "${shPath}"\nTerminal=false\nCategories=Education;\n`;
+      fs.writeFileSync(desktopFilePath, desktopContent);
+      try { fs.chmodSync(desktopFilePath, '755'); } catch {}
+      return desktopFilePath;
+    }
   }
 }
 

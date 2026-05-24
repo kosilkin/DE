@@ -35,6 +35,18 @@ module.exports = function registerExportIpc(services, mainWindow) {
     } catch (e) { return fail(e.code || 'ERROR', e.message); }
   });
 
+  ipcMain.handle('export:createShortcut', async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Выберите папку для ярлыка',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled || !result.filePaths.length) return ok(null);
+      const shortcutPath = svc.createAppShortcut(result.filePaths[0]);
+      return ok(shortcutPath);
+    } catch (e) { return fail(e.code || 'ERROR', e.message); }
+  });
+
   ipcMain.handle('export:er', async (_, projectId) => {
     try {
       const svg = svc.generateErSvg(projectId);

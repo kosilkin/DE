@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('appApi', {
     project: (projectId) => invoke('export:project', projectId),
     sql: (projectId) => invoke('export:sql', projectId),
     er: (projectId) => invoke('export:er', projectId),
+    createShortcut: () => invoke('export:createShortcut'),
   },
   maintenance: {
     stats: () => invoke('maintenance:stats'),
