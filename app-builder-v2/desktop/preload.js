@@ -39,6 +39,12 @@ contextBridge.exposeInMainWorld('appApi', {
     me: (userId) => invoke('auth:me', userId),
     register: (projectId, data) => invoke('auth:register', projectId, data),
   },
+  users: {
+    list: (projectId) => invoke('users:list', projectId),
+    create: (projectId, data) => invoke('users:create', projectId, data),
+    update: (userId, data) => invoke('users:update', userId, data),
+    delete: (userId) => invoke('users:delete', userId),
+  },
   permissions: {
     getTable: (entityId) => invoke('permissions:getTable', entityId),
     saveTable: (entityId, perms) => invoke('permissions:saveTable', entityId, perms),
