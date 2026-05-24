@@ -194,11 +194,14 @@ class ExportService {
 
   _createShortcut(outputDir, project) {
     const appDir = path.resolve(path.join(__dirname, '..', '..'));
+    const electronPath = this._findElectronExe(appDir);
     const isWin = process.platform === 'win32';
 
     if (isWin) {
-      const batContent = `@echo off\r\ntitle ${project.title}\r\ncd /d "${appDir}"\r\nset APP_PROJECT_ID=${project.id}\r\nset APP_RUNTIME_MODE=1\r\nnpx electron .\r\n`;
-      fs.writeFileSync(path.join(outputDir, `${project.title}.bat`), batContent);
+      this._createWindowsLauncher(outputDir, project.title, appDir, electronPath, {
+        APP_PROJECT_ID: String(project.id),
+        APP_RUNTIME_MODE: '1'
+      });
     } else {
       const shContent = `#!/bin/bash\ncd "${appDir}"\nAPP_PROJECT_ID=${project.id} APP_RUNTIME_MODE=1 npx electron .\n`;
       const shPath = path.join(outputDir, `${project.title}.sh`);
@@ -213,13 +216,11 @@ class ExportService {
 
   createAppShortcut(desktopPath) {
     const appDir = path.resolve(path.join(__dirname, '..', '..'));
+    const electronPath = this._findElectronExe(appDir);
     const isWin = process.platform === 'win32';
 
     if (isWin) {
-      const batPath = path.join(desktopPath, 'Конструктор ИС.bat');
-      const batContent = `@echo off\r\ntitle Конструктор ИС\r\ncd /d "${appDir}"\r\nnpx electron .\r\n`;
-      fs.writeFileSync(batPath, batContent);
-      return batPath;
+      return this._createWindowsLauncher(desktopPath, 'Конструктор ИС', appDir, electronPath, {});
     } else {
       const shPath = path.join(desktopPath, 'app-builder-v2.sh');
       const shContent = `#!/bin/bash\ncd "${appDir}"\nnpx electron .\n`;
@@ -232,6 +233,37 @@ class ExportService {
       try { fs.chmodSync(desktopFilePath, '755'); } catch {}
       return desktopFilePath;
     }
+  }
+
+  _findElectronExe(appDir) {
+    const electronBin = path.join(appDir, 'node_modules', '.bin', 'electron');
+    const electronExe = path.join(appDir, 'node_modules', 'electron', 'dist', 'electron.exe');
+    if (process.platform === 'win32' && fs.existsSync(electronExe)) return electronExe;
+    if (fs.existsSync(electronBin)) return electronBin;
+    return 'npx electron';
+  }
+
+  _createWindowsLauncher(outputDir, title, appDir, electronPath, envVars) {
+    // Create a VBScript wrapper that launches Electron without showing a console window
+    const envLines = Object.entries(envVars)
+      .map(([k, v]) => `WshShell.Environment("Process").Item("${k}") = "${v}"`)
+      .join('\r\n');
+
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\r\n${envLines}\r\nWshShell.CurrentDirectory = "${appDir.replace(/\\/g, '\\\\')}"\r\nWshShell.Run """${electronPath.replace(/\\/g, '\\\\')}"" .", 0, False\r\n`;
+    const vbsPath = path.join(outputDir, `${title}.vbs`);
+    fs.writeFileSync(vbsPath, vbsContent);
+
+    // Create .lnk shortcut via PowerShell script
+    const ps1Content = `$WshShell = New-Object -ComObject WScript.Shell\r\n$Shortcut = $WshShell.CreateShortcut("${path.join(outputDir, title + '.lnk').replace(/\\/g, '\\\\')}")\r\n$Shortcut.TargetPath = "wscript.exe"\r\n$Shortcut.Arguments = """${vbsPath.replace(/\\/g, '\\\\')}"""\r\n$Shortcut.WorkingDirectory = "${appDir.replace(/\\/g, '\\\\')}"\r\n$Shortcut.Description = "${title}"\r\n$Shortcut.Save()\r\n`;
+    const ps1Path = path.join(outputDir, '_create_shortcut.ps1');
+    fs.writeFileSync(ps1Path, ps1Content);
+
+    // Also create a simple .bat as fallback
+    const batEnv = Object.entries(envVars).map(([k, v]) => `set ${k}=${v}`).join('\r\n');
+    const batContent = `@echo off\r\ntitle ${title}\r\ncd /d "${appDir}"\r\n${batEnv}\r\n"${electronPath}" .\r\n`;
+    fs.writeFileSync(path.join(outputDir, `${title}.bat`), batContent);
+
+    return path.join(outputDir, `${title}.bat`);
   }
 }
 
