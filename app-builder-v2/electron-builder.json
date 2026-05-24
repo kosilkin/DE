@@ -1,0 +1,21 @@
+{
+  "appId": "com.appbuilder.v2",
+  "productName": "AppBuilder V2",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "desktop/**/*",
+    "src/**/*",
+    "public/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": "nsis",
+    "icon": "public/assets/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
