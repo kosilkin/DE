@@ -29,6 +29,7 @@ const ErScreen = {
         for (const e of entities) {
           this._fieldsMap[e.id] = await callApi(() => api.fields.list(e.id));
         }
+        this._relations = await callApi(() => api.relations.list(projectId));
         this._initPositions();
         this._renderSvg();
         this._attachDragHandlers();
@@ -102,22 +103,13 @@ const ErScreen = {
 
   _drawRelationArrows() {
     const positions = this._positions;
-    const entities = this._entities;
-    const fieldsMap = this._fieldsMap;
     let svg = '';
 
-    const relations = [];
-    for (const e of entities) {
-      const fields = fieldsMap[e.id] || [];
-      for (const f of fields) {
-        if (f.type !== 'relation') continue;
-        for (const te of entities) {
-          if (f.name.replace('_id', '') === te.name || f.name.replace('_id', 's') === te.name) {
-            relations.push({ src: e.id, tgt: te.id, fieldName: f.name });
-          }
-        }
-      }
-    }
+    const relations = (this._relations || []).map(r => ({
+      src: r.source_entity_id,
+      tgt: r.target_entity_id,
+      fieldName: r.source_field_name
+    }));
 
     for (const rel of relations) {
       const src = positions[rel.src];

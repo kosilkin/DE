@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('appApi', {
     update: (id, data) => invoke('fields:update', id, data),
     delete: (id) => invoke('fields:delete', id),
   },
+  relations: {
+    list: (projectId) => invoke('relations:list', projectId),
+  },
   roles: {
     list: (projectId) => invoke('roles:list', projectId),
     create: (projectId, data) => invoke('roles:create', projectId, data),

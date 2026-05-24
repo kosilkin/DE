@@ -53,11 +53,12 @@ const StructureScreen = {
       const entity = await callApi(() => api.entities.get(entityId));
       const fields = await callApi(() => api.fields.list(entityId));
       const allEntities = await callApi(() => api.entities.list(AppState.currentProject.id));
-      this._renderDetail(detailEl, entity, fields, allEntities);
+      const relations = await callApi(() => api.relations.list(AppState.currentProject.id));
+      this._renderDetail(detailEl, entity, fields, allEntities, relations);
     } catch (e) { StateViews.error(detailEl, e.message); }
   },
 
-  _renderDetail(detailEl, entity, fields, allEntities) {
+  _renderDetail(detailEl, entity, fields, allEntities, relations) {
     const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
     let html = `
       <div class="card" style="margin-bottom:16px">
@@ -88,7 +89,7 @@ const StructureScreen = {
         html += `<tr>
           <td><code>${f.name}</code></td>
           <td>${esc(f.title)}</td>
-          <td><span class="badge badge-info">${f.type}</span>${f.type === 'relation' ? (() => { const tgt = allEntities.find(e => e.name === f.name.replace('_id', '') || e.name === f.name.replace('_id', 's')); return tgt ? ` → ${esc(tgt.title)}` : ''; })() : ''}</td>
+          <td><span class="badge badge-info">${f.type}</span>${f.type === 'relation' ? (() => { const rel = (relations || []).find(r => r.source_field_id === f.id); return rel ? ` → ${esc(rel.target_entity_title || '')}` : ''; })() : ''}</td>
           <td>${f.required ? 'Да' : '—'}</td>
           <td>${f.unique_value ? 'Да' : '—'}</td>
           <td>
