@@ -18,6 +18,8 @@ const StartScreen = {
         <p class="subtitle">Выберите проект или создайте новый</p>
         <div class="toolbar">
           <button class="btn btn-primary" data-action="createProject">Создать проект</button>
+          <span class="toolbar-spacer"></span>
+          <button class="btn btn-sm" data-action="createAppShortcut">Создать ярлык на рабочем столе</button>
         </div>
     `;
 
@@ -135,6 +137,13 @@ Actions.register('openRuntime', async (params) => {
   const project = await callApi(() => api.projects.get(params.id));
   AppShell.setProject(project);
   AppShell.navigate('runtime');
+});
+
+Actions.register('createAppShortcut', async () => {
+  try {
+    const result = await callApi(() => api.export.createShortcut());
+    if (result) Notifications.success('Ярлык создан: ' + result);
+  } catch (e) { Notifications.error(e.message); }
 });
 
 window.StartScreen = StartScreen;

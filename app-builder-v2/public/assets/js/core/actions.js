@@ -22,18 +22,8 @@ const Actions = {
   },
 
   scan(container) {
-    const root = container || document;
-    const buttons = root.querySelectorAll('[data-action]');
-    buttons.forEach(btn => {
-      if (btn._actionBound) return;
-      btn._actionBound = true;
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const action = btn.dataset.action;
-        const params = btn.dataset.params ? JSON.parse(btn.dataset.params) : undefined;
-        this.execute(action, params);
-      });
-    });
+    // Event delegation handles all [data-action] clicks via the document-level listener.
+    // scan() is kept for backwards compatibility but no longer binds individual handlers.
   },
 
   checkSuspiciousButtons(container) {

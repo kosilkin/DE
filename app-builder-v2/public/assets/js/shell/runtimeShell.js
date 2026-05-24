@@ -2,6 +2,22 @@
 
 const RuntimeShell = {
   async render(contentEl, sidebarEl) {
+    const project = AppState.currentProject;
+    if (project && project.login_enabled === 0) {
+      // Login disabled — auto-login as admin
+      if (!AppState.currentUser) {
+        try {
+          const user = await callApi(() => api.auth.login(project.id, 'Admin', 'KorokNET'));
+          AppShell.setUser(user);
+        } catch {
+          // If auto-login fails, show the normal login form
+          this._showLogin(contentEl, sidebarEl);
+          return;
+        }
+      }
+      await this._renderMain(contentEl, sidebarEl);
+      return;
+    }
     if (!AppState.currentUser) {
       this._showLogin(contentEl, sidebarEl);
       return;
@@ -117,11 +133,16 @@ Actions.register('runtimeRegister', () => {
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   DOM.$('#register-form', modal).onsubmit = async (e) => {
     e.preventDefault();
+    const loginVal = DOM.$('#reg-login', modal).value.trim();
+    const passwordVal = DOM.$('#reg-password', modal).value;
+    const fullnameVal = DOM.$('#reg-fullname', modal).value.trim();
+    if (!loginVal) { Notifications.error('Заполните логин'); return; }
+    if (!passwordVal) { Notifications.error('Заполните пароль'); return; }
     try {
       const user = await callApi(() => api.auth.register(AppState.currentProject.id, {
-        login: DOM.$('#reg-login').value.trim(),
-        password: DOM.$('#reg-password').value,
-        full_name: DOM.$('#reg-fullname').value.trim(),
+        login: loginVal,
+        password: passwordVal,
+        full_name: fullnameVal,
       }));
       Notifications.success('Регистрация успешна');
       overlay.remove();

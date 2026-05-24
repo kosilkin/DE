@@ -88,7 +88,7 @@ const StructureScreen = {
         html += `<tr>
           <td><code>${f.name}</code></td>
           <td>${esc(f.title)}</td>
-          <td><span class="badge badge-info">${f.type}</span></td>
+          <td><span class="badge badge-info">${f.type}</span>${f.type === 'relation' ? (() => { const tgt = allEntities.find(e => e.name === f.name.replace('_id', '') || e.name === f.name.replace('_id', 's')); return tgt ? ` → ${esc(tgt.title)}` : ''; })() : ''}</td>
           <td>${f.required ? 'Да' : '—'}</td>
           <td>${f.unique_value ? 'Да' : '—'}</td>
           <td>

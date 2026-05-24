@@ -83,6 +83,10 @@ class ImportService {
     const fieldMap = {};
     for (const f of fields) fieldMap[f.name] = f;
 
+    if (!mapping || Object.keys(mapping).length === 0) {
+      throw new ValidationError('Не указано соответствие полей (маппинг пуст)');
+    }
+
     const results = { imported: 0, skipped: 0, errors: [] };
     const rows = data.slice(dataStartRow - 1);
 
@@ -90,8 +94,17 @@ class ImportService {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
+
+      // Skip completely empty rows
+      const isEmptyRow = !row || row.every(cell => cell === '' || cell === null || cell === undefined);
+      if (isEmptyRow) {
+        results.skipped++;
+        continue;
+      }
+
       const record = {};
       const rowErrors = [];
+      let hasAnyValue = false;
 
       for (const [fieldName, colIndex] of Object.entries(mapping)) {
         const field = fieldMap[fieldName];
@@ -108,7 +121,14 @@ class ImportService {
         if (val !== '' && val !== null && val !== undefined) {
           if (field.type === 'boolean') val = val ? 1 : 0;
           record[fieldName] = val;
+          hasAnyValue = true;
         }
+      }
+
+      // Skip rows where all mapped values are empty
+      if (!hasAnyValue && rowErrors.length === 0) {
+        results.skipped++;
+        continue;
       }
 
       if (ownerField && ctx.user) {
