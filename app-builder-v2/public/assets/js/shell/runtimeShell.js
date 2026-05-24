@@ -2,6 +2,22 @@
 
 const RuntimeShell = {
   async render(contentEl, sidebarEl) {
+    const project = AppState.currentProject;
+    if (project && project.login_enabled === 0) {
+      // Login disabled — auto-login as admin
+      if (!AppState.currentUser) {
+        try {
+          const user = await callApi(() => api.auth.login(project.id, 'Admin', 'KorokNET'));
+          AppShell.setUser(user);
+        } catch {
+          // If auto-login fails, show the normal login form
+          this._showLogin(contentEl, sidebarEl);
+          return;
+        }
+      }
+      await this._renderMain(contentEl, sidebarEl);
+      return;
+    }
     if (!AppState.currentUser) {
       this._showLogin(contentEl, sidebarEl);
       return;

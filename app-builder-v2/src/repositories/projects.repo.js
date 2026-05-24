@@ -22,7 +22,7 @@ class ProjectsRepo {
   update(id, data) {
     const sets = [];
     const vals = [];
-    for (const key of ['title', 'description', 'template_code', 'schema_version', 'updated_at']) {
+    for (const key of ['title', 'description', 'template_code', 'schema_version', 'login_enabled', 'updated_at']) {
       if (data[key] !== undefined) { sets.push(`${key} = ?`); vals.push(data[key]); }
     }
     if (!sets.length) return this.getById(id);
