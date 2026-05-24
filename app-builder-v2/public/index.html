@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
+  <title>Конструктор ИС — app-builder v2</title>
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/shell.css" />
+  <link rel="stylesheet" href="assets/css/designer.css" />
+  <link rel="stylesheet" href="assets/css/runtime.css" />
+  <link rel="stylesheet" href="assets/css/forms.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="app-header">
+      <span class="app-title">Конструктор ИС</span>
+    </div>
+    <div id="app-body">
+      <div id="sidebar" class="hidden"></div>
+      <div id="main-content">
+        <div class="loading-state"><div>Загрузка...</div></div>
+      </div>
+    </div>
+    <div id="status-bar">Загрузка...</div>
+  </div>
+
+  <!-- Core -->
+  <script src="assets/js/core/dom.js"></script>
+  <script src="assets/js/core/notifications.js"></script>
+  <script src="assets/js/core/actions.js"></script>
+  <script src="assets/js/core/stateViews.js"></script>
+  <script src="assets/js/core/apiClient.js"></script>
+
+  <!-- Shell -->
+  <script src="assets/js/shell/appShell.js"></script>
+  <script src="assets/js/shell/startScreen.js"></script>
+  <script src="assets/js/shell/designerShell.js"></script>
+  <script src="assets/js/shell/runtimeShell.js"></script>
+
+  <!-- Designer -->
+  <script src="assets/js/designer/overviewScreen.js"></script>
+  <script src="assets/js/designer/structureScreen.js"></script>
+  <script src="assets/js/designer/accessScreen.js"></script>
+  <script src="assets/js/designer/dataScreen.js"></script>
+  <script src="assets/js/designer/importScreen.js"></script>
+  <script src="assets/js/designer/erScreen.js"></script>
+  <script src="assets/js/designer/exportScreen.js"></script>
+
+  <!-- Runtime -->
+  <script src="assets/js/runtime/runtimeList.js"></script>
+  <script src="assets/js/runtime/runtimeForm.js"></script>
+  <script src="assets/js/runtime/runtimeFilters.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      AppShell.init();
+    });
+  </script>
+</body>
+</html>
