@@ -22,6 +22,7 @@ const AccessScreen = {
       <div class="toolbar" style="margin-top:16px">
         <h4>Роли</h4>
         <span class="toolbar-spacer"></span>
+        <button class="btn btn-sm" data-action="importRolesFromTable">Импортировать из таблицы</button>
         <button class="btn btn-primary btn-sm" data-action="createRole">Создать роль</button>
       </div>
     `;
@@ -273,6 +274,77 @@ Actions.register('editUser', async (params) => {
       if (pwd) data.password = pwd;
       await callApi(() => api.users.update(user.id, data));
       Notifications.success('Пользователь обновлён');
+      overlay.remove();
+      AccessScreen.render(DOM.$('#main-content'));
+    } catch (e) { Notifications.error(e.message); }
+  };
+});
+
+Actions.register('importRolesFromTable', async () => {
+  const projectId = AppState.currentProject.id;
+  const entities = await callApi(() => api.entities.list(projectId));
+  if (!entities.length) { Notifications.error('Нет таблиц для импорта ролей'); return; }
+  const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+  const overlay = DOM.el('div', { className: 'modal-overlay' });
+  const modal = DOM.el('div', { className: 'modal', style: { minWidth: '500px' } });
+  modal.innerHTML = `
+    <div class="modal-title">Импорт ролей из таблицы</div>
+    <p style="color:var(--text-secondary);margin-bottom:12px">Выберите таблицу, в которой хранятся роли, и укажите какие колонки соответствуют полям роли.</p>
+    <div class="form-group"><label>Таблица-источник</label><select id="role-import-entity" data-exempt="true">${entities.map(e => `<option value="${e.id}">${esc(e.title)}</option>`).join('')}</select></div>
+    <div id="role-import-mapping"><div class="loading-state">Загрузка полей...</div></div>
+    <div class="modal-actions">
+      <button class="btn" data-exempt="true" id="modal-cancel">Отмена</button>
+      <button class="btn btn-primary" data-exempt="true" id="modal-save">Импортировать роли</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  DOM.$('#modal-cancel', modal).onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const loadMapping = async (entityId) => {
+    const mappingEl = DOM.$('#role-import-mapping', modal);
+    const fields = await callApi(() => api.fields.list(entityId));
+    const roleFields = [
+      { key: 'code', label: 'Код роли (обязательно)', required: true },
+      { key: 'title', label: 'Название роли (обязательно)', required: true },
+      { key: 'description', label: 'Описание' },
+    ];
+    let html = '<table><tbody>';
+    for (const rf of roleFields) {
+      html += `<tr><td>${rf.label}</td><td><select data-role-field="${rf.key}" data-exempt="true"><option value="">— пропустить —</option>${fields.map(f => `<option value="${f.name}" ${f.name === rf.key || f.title.toLowerCase().includes(rf.label.split(' ')[0].toLowerCase()) ? 'selected' : ''}>${esc(f.title)} (${f.name})</option>`).join('')}</select></td></tr>`;
+    }
+    html += '</tbody></table>';
+    mappingEl.innerHTML = html;
+  };
+
+  const entitySelect = DOM.$('#role-import-entity', modal);
+  entitySelect.onchange = () => loadMapping(parseInt(entitySelect.value));
+  loadMapping(parseInt(entitySelect.value));
+
+  DOM.$('#modal-save', modal).onclick = async () => {
+    const entityId = parseInt(entitySelect.value);
+    const codeField = modal.querySelector('[data-role-field="code"]').value;
+    const titleField = modal.querySelector('[data-role-field="title"]').value;
+    const descField = modal.querySelector('[data-role-field="description"]').value;
+    if (!codeField) { Notifications.error('Укажите поле для кода роли'); return; }
+    if (!titleField) { Notifications.error('Укажите поле для названия роли'); return; }
+
+    try {
+      const records = await callApi(() => api.runtime.listRecords(entityId, { pageSize: 10000 }));
+      let imported = 0, skipped = 0;
+      for (const rec of records.records) {
+        const code = rec[codeField];
+        const title = rec[titleField];
+        const description = descField ? (rec[descField] || '') : '';
+        if (!code || !title) { skipped++; continue; }
+        try {
+          await callApi(() => api.roles.create(projectId, { code: String(code).trim(), title: String(title).trim(), description: String(description).trim() }));
+          imported++;
+        } catch { skipped++; }
+      }
+      Notifications.success(`Импортировано ролей: ${imported}, пропущено: ${skipped}`);
       overlay.remove();
       AccessScreen.render(DOM.$('#main-content'));
     } catch (e) { Notifications.error(e.message); }
