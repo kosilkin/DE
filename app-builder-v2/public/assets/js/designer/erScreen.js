@@ -179,11 +179,18 @@ const ErScreen = {
   },
 
   _attachDragHandlers() {
-    const svgEl = DOM.$('#er-svg');
-    if (!svgEl) return;
+    const container = DOM.$('#er-svg-container');
+    if (!container) return;
     const self = this;
 
-    svgEl.addEventListener('mousedown', (e) => {
+    // Remove old listeners to prevent buildup
+    if (this._onMouseDown) container.removeEventListener('mousedown', this._onMouseDown);
+    if (this._onMouseMove) document.removeEventListener('mousemove', this._onMouseMove);
+    if (this._onMouseUp) document.removeEventListener('mouseup', this._onMouseUp);
+
+    this._rafPending = false;
+
+    this._onMouseDown = (e) => {
       const group = e.target.closest('.er-entity');
       if (!group) return;
       const entityId = parseInt(group.dataset.entityId);
@@ -197,11 +204,10 @@ const ErScreen = {
         origX: pos.x,
         origY: pos.y,
       };
-      group.style.cursor = 'grabbing';
       e.preventDefault();
-    });
+    };
 
-    document.addEventListener('mousemove', (e) => {
+    this._onMouseMove = (e) => {
       if (!self._dragging) return;
       const dx = e.clientX - self._dragging.startX;
       const dy = e.clientY - self._dragging.startY;
@@ -209,16 +215,26 @@ const ErScreen = {
       if (pos) {
         pos.x = Math.max(5, self._dragging.origX + dx);
         pos.y = Math.max(5, self._dragging.origY + dy);
-        self._renderSvg();
-        self._attachDragHandlers();
+        if (!self._rafPending) {
+          self._rafPending = true;
+          requestAnimationFrame(() => {
+            self._renderSvg();
+            self._rafPending = false;
+          });
+        }
       }
-    });
+    };
 
-    document.addEventListener('mouseup', () => {
+    this._onMouseUp = () => {
       if (self._dragging) {
         self._dragging = null;
       }
-    });
+    };
+
+    // Attach to container (persists across SVG re-renders)
+    container.addEventListener('mousedown', this._onMouseDown);
+    document.addEventListener('mousemove', this._onMouseMove);
+    document.addEventListener('mouseup', this._onMouseUp);
   },
 
   async _renderSqlInline(projectId) {
