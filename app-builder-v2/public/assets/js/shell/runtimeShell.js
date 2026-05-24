@@ -117,11 +117,16 @@ Actions.register('runtimeRegister', () => {
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   DOM.$('#register-form', modal).onsubmit = async (e) => {
     e.preventDefault();
+    const loginVal = DOM.$('#reg-login', modal).value.trim();
+    const passwordVal = DOM.$('#reg-password', modal).value;
+    const fullnameVal = DOM.$('#reg-fullname', modal).value.trim();
+    if (!loginVal) { Notifications.error('Заполните логин'); return; }
+    if (!passwordVal) { Notifications.error('Заполните пароль'); return; }
     try {
       const user = await callApi(() => api.auth.register(AppState.currentProject.id, {
-        login: DOM.$('#reg-login').value.trim(),
-        password: DOM.$('#reg-password').value,
-        full_name: DOM.$('#reg-fullname').value.trim(),
+        login: loginVal,
+        password: passwordVal,
+        full_name: fullnameVal,
       }));
       Notifications.success('Регистрация успешна');
       overlay.remove();
