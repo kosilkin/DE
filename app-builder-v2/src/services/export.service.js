@@ -392,11 +392,26 @@ class ExportService {
       }
     }
 
-    // Import data
+    // Build relation field map: entityName -> [{fieldName, targetEntityName}]
+    const relationFieldsMap = {};
+    for (const rel of (imp.relations || [])) {
+      const srcEntityData = (imp.entities || []).find(e => e.id === rel.source_entity_id);
+      const tgtEntityData = (imp.entities || []).find(e => e.id === rel.target_entity_id);
+      const srcFieldData = srcEntityData ? (srcEntityData.fields || []).find(f => f.id === rel.source_field_id) : null;
+      if (srcEntityData && tgtEntityData && srcFieldData) {
+        if (!relationFieldsMap[srcEntityData.name]) relationFieldsMap[srcEntityData.name] = [];
+        relationFieldsMap[srcEntityData.name].push({ fieldName: srcFieldData.name, targetEntityName: tgtEntityData.name });
+      }
+    }
+
+    // Import data — two passes: insert records (build old→new ID maps), then remap FK values
+    const recordIdMap = {}; // entityName -> {oldId -> newId}
     for (const entityData of (imp.entities || [])) {
       const records = (imp.data || {})[entityData.name];
       if (!records || !records.length) continue;
+      recordIdMap[entityData.name] = {};
       for (const rec of records) {
+        const oldId = rec.id;
         const cleanRec = {};
         for (const [k, v] of Object.entries(rec)) {
           if (k === 'id') continue;
@@ -405,8 +420,32 @@ class ExportService {
         if (!cleanRec.created_at) cleanRec.created_at = ts;
         if (!cleanRec.updated_at) cleanRec.updated_at = ts;
         try {
-          this.runtime.insertRecord(project.id, entityData.name, cleanRec);
+          const inserted = this.runtime.insertRecord(project.id, entityData.name, cleanRec);
+          if (oldId && inserted && inserted.id) {
+            recordIdMap[entityData.name][oldId] = inserted.id;
+          }
         } catch {}
+      }
+    }
+
+    // Remap FK values in relation fields
+    for (const entityData of (imp.entities || [])) {
+      const relFields = relationFieldsMap[entityData.name];
+      if (!relFields || !relFields.length) continue;
+      const idMap = recordIdMap[entityData.name];
+      if (!idMap) continue;
+      for (const [oldId, newId] of Object.entries(idMap)) {
+        for (const rf of relFields) {
+          const targetMap = recordIdMap[rf.targetEntityName];
+          if (!targetMap) continue;
+          const rec = this.runtime.getRecord(project.id, entityData.name, newId);
+          if (!rec || !rec[rf.fieldName]) continue;
+          const oldFk = rec[rf.fieldName];
+          const newFk = targetMap[oldFk];
+          if (newFk && newFk !== oldFk) {
+            this.runtime.updateRecord(project.id, entityData.name, newId, { [rf.fieldName]: newFk });
+          }
+        }
       }
     }
 
@@ -461,7 +500,9 @@ class ExportService {
     const electronExe = path.join(appDir, 'node_modules', 'electron', 'dist', 'electron.exe');
     if (process.platform === 'win32' && fs.existsSync(electronExe)) return electronExe;
     if (fs.existsSync(electronBin)) return electronBin;
-    return 'npx electron';
+    const npxBin = path.join(appDir, 'node_modules', '.bin', 'npx');
+    if (fs.existsSync(npxBin)) return npxBin;
+    return null;
   }
 
   _createWindowsLauncher(outputDir, title, appDir, electronPath, envVars) {
@@ -470,7 +511,17 @@ class ExportService {
       .map(([k, v]) => `WshShell.Environment("Process").Item("${k}") = "${v}"`)
       .join('\r\n');
 
-    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\r\n${envLines}\r\nWshShell.CurrentDirectory = "${appDir.replace(/\\/g, '\\\\')}"\r\nWshShell.Run """${electronPath.replace(/\\/g, '\\\\')}"" .", 0, False\r\n`;
+    if (!electronPath) {
+      const batEnv = Object.entries(envVars).map(([k, v]) => `set ${k}=${v}`).join('\r\n');
+      const batContent = `@echo off\r\ntitle ${title}\r\ncd /d "${appDir}"\r\n${batEnv}\r\nnpx electron .\r\n`;
+      fs.writeFileSync(path.join(outputDir, `${title}.bat`), batContent);
+      return path.join(outputDir, `${title}.bat`);
+    }
+    const isNpx = !electronPath.includes('electron.exe') && !electronPath.endsWith('electron');
+    const runCmd = isNpx
+      ? `"""${electronPath.replace(/\\/g, '\\\\')}"" electron ."`
+      : `"""${electronPath.replace(/\\/g, '\\\\')}"" ."`;
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\r\n${envLines}\r\nWshShell.CurrentDirectory = "${appDir.replace(/\\/g, '\\\\')}"\r\nWshShell.Run ${runCmd}, 0, False\r\n`;
     const vbsPath = path.join(outputDir, `${title}.vbs`);
     fs.writeFileSync(vbsPath, vbsContent);
 
@@ -481,7 +532,8 @@ class ExportService {
 
     // Also create a simple .bat as fallback
     const batEnv = Object.entries(envVars).map(([k, v]) => `set ${k}=${v}`).join('\r\n');
-    const batContent = `@echo off\r\ntitle ${title}\r\ncd /d "${appDir}"\r\n${batEnv}\r\n"${electronPath}" .\r\n`;
+    const batCmd = isNpx ? `"${electronPath}" electron .` : `"${electronPath}" .`;
+    const batContent = `@echo off\r\ntitle ${title}\r\ncd /d "${appDir}"\r\n${batEnv}\r\n${batCmd}\r\n`;
     fs.writeFileSync(path.join(outputDir, `${title}.bat`), batContent);
 
     return path.join(outputDir, `${title}.bat`);

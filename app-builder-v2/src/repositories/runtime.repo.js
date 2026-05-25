@@ -85,9 +85,10 @@ class RuntimeRepo {
     this.db.prepare(`DELETE FROM ${tbl} WHERE id = ?`).run(id);
   }
 
-  deleteAllRecords(projectId, entityName) {
+  deleteAllRecords(projectId, entityName, where, params) {
     const tbl = physicalTableName(projectId, entityName);
-    const info = this.db.prepare(`DELETE FROM ${tbl}`).run();
+    const sql = where ? `DELETE FROM ${tbl} WHERE ${where}` : `DELETE FROM ${tbl}`;
+    const info = this.db.prepare(sql).run(...(params || []));
     return info.changes;
   }
 

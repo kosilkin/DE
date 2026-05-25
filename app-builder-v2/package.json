@@ -8,9 +8,16 @@
     "test:smoke": "node scripts/smoke-test.js",
     "test:ui": "npx playwright test --config=playwright.config.js",
     "test:desktop": "node scripts/desktop-smoke-test.js",
-    "build:win": "electron-builder --win --config electron-builder.json"
+    "build:win": "electron-builder --win --config electron-builder.json",
+    "build:linux": "electron-builder --linux --config electron-builder.json",
+    "build:mac": "electron-builder --mac --config electron-builder.json",
+    "build": "electron-builder --config electron-builder.json"
   },
-  "author": "",
+  "author": {
+    "name": "KorokNET",
+    "email": "kosilkinmiha@gmail.com"
+  },
+  "homepage": "https://github.com/kosilkin/DE",
   "license": "MIT",
   "dependencies": {
     "better-sqlite3": "^11.7.0",
