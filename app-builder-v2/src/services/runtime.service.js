@@ -186,6 +186,16 @@ class RuntimeService {
     const entity = this.entities.getById(entityId);
     if (!entity) throw new NotFoundError('Таблица не найдена');
     this._checkAccess(entity.id, ctx, 'delete');
+
+    const scope = this._getScope(entity.id, ctx, 'delete');
+    if (scope === 'none') throw new PermissionError('Нет доступа к удалению записей');
+
+    if (scope === 'own') {
+      const ownerField = entity.owner_field_id ? this.fields.getById(entity.owner_field_id) : null;
+      if (!ownerField || !ctx.user) throw new PermissionError('Невозможно определить владельца записей');
+      return this.runtime.deleteAllRecords(entity.project_id, entity.name, `${ownerField.name} = ?`, [ctx.user.id]);
+    }
+
     return this.runtime.deleteAllRecords(entity.project_id, entity.name);
   }
 
