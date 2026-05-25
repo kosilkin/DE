@@ -182,6 +182,13 @@ class RuntimeService {
     this.runtime.deleteRecord(entity.project_id, entity.name, recordId);
   }
 
+  deleteAllRecords(ctx, entityId) {
+    const entity = this.entities.getById(entityId);
+    if (!entity) throw new NotFoundError('Таблица не найдена');
+    this._checkAccess(entity.id, ctx, 'delete');
+    return this.runtime.deleteAllRecords(entity.project_id, entity.name);
+  }
+
   relationOptions(ctx, targetEntityId) {
     const entity = this.entities.getById(targetEntityId);
     if (!entity) return [];

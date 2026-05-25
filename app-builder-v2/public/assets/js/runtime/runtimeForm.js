@@ -71,26 +71,27 @@ const RuntimeForm = {
       DOM.$('#form-cancel', modal).onclick = () => overlay.remove();
       overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-      // Load relation options
+      // Load relation options using actual relations data
       const relationFields = fields.filter(f => f.type === 'relation');
-      for (const rf of relationFields) {
-        const sel = modal.querySelector(`select[data-field-name="${rf.name}"]`);
-        if (!sel) continue;
-        // find target entity from relations or by name convention
-        try {
-          const entities = await callApi(() => api.entities.list(AppState.currentProject.id));
-          // guess target from field name
-          const targetName = rf.name.replace('_id', '');
-          let targetEntity = entities.find(e => e.name === targetName || e.name === targetName + 's');
-          if (targetEntity) {
-            const options = await callApi(() => api.runtime.relationOptions(targetEntity.id));
-            sel.innerHTML = '<option value="">— выберите —</option>';
-            for (const opt of options) {
-              const selected = record && record[rf.name] == opt.id ? 'selected' : '';
-              sel.innerHTML += `<option value="${opt.id}" ${selected}>${esc(opt.display)}</option>`;
-            }
+      if (relationFields.length) {
+        const relations = await callApi(() => api.relations.list(AppState.currentProject.id));
+        for (const rf of relationFields) {
+          const sel = modal.querySelector(`select[data-field-name="${rf.name}"]`);
+          if (!sel) continue;
+          const rel = relations.find(r => r.source_field_id === rf.id);
+          if (rel) {
+            try {
+              const options = await callApi(() => api.runtime.relationOptions(rel.target_entity_id));
+              sel.innerHTML = '<option value="">— выберите —</option>';
+              for (const opt of options) {
+                const selected = record && record[rf.name] == opt.id ? 'selected' : '';
+                sel.innerHTML += `<option value="${opt.id}" ${selected}>${esc(opt.display)}</option>`;
+              }
+            } catch { sel.innerHTML = '<option value="">— ошибка загрузки —</option>'; }
+          } else {
+            sel.innerHTML = '<option value="">— связь не настроена —</option>';
           }
-        } catch {}
+        }
       }
 
       DOM.$('#record-form', modal).onsubmit = async (e) => {

@@ -19,6 +19,7 @@ const StartScreen = {
         <div class="toolbar">
           <button class="btn btn-primary" data-action="createProject">Создать проект</button>
           <span class="toolbar-spacer"></span>
+          <button class="btn btn-sm" data-action="importProjectDev">Импортировать проект</button>
           <button class="btn btn-sm" data-action="createAppShortcut">Создать ярлык на рабочем столе</button>
         </div>
     `;
@@ -137,6 +138,16 @@ Actions.register('openRuntime', async (params) => {
   const project = await callApi(() => api.projects.get(params.id));
   AppShell.setProject(project);
   AppShell.navigate('runtime');
+});
+
+Actions.register('importProjectDev', async () => {
+  try {
+    const result = await callApi(() => api.export.importProjectDev());
+    if (result) {
+      Notifications.success(`Проект "${result.title}" импортирован`);
+      StartScreen.render(DOM.$('#main-content'));
+    }
+  } catch (e) { Notifications.error(e.message); }
 });
 
 Actions.register('createAppShortcut', async () => {

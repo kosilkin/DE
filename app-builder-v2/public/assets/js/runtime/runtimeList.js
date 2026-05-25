@@ -16,20 +16,21 @@ const RuntimeList = {
       const fields = await callApi(() => api.fields.list(this._entityId));
       const result = await callApi(() => api.runtime.listRecords(this._entityId, this._opts));
 
-      // resolve relation display values
+      // resolve relation display values using actual relations data
       const relationFields = fields.filter(f => f.type === 'relation');
       const relationDisplayMap = {};
-      const allEntities = await callApi(() => api.entities.list(AppState.currentProject.id));
-      for (const rf of relationFields) {
-        const targetName = rf.name.replace('_id', '');
-        const targetEntity = allEntities.find(e => e.name === targetName || e.name === targetName + 's');
-        if (targetEntity) {
-          try {
-            const opts = await callApi(() => api.runtime.relationOptions(targetEntity.id));
-            const map = {};
-            for (const o of opts) map[o.id] = o.display;
-            relationDisplayMap[rf.name] = map;
-          } catch {}
+      if (relationFields.length) {
+        const relations = await callApi(() => api.relations.list(AppState.currentProject.id));
+        for (const rf of relationFields) {
+          const rel = relations.find(r => r.source_field_id === rf.id);
+          if (rel) {
+            try {
+              const opts = await callApi(() => api.runtime.relationOptions(rel.target_entity_id));
+              const map = {};
+              for (const o of opts) map[o.id] = o.display;
+              relationDisplayMap[rf.name] = map;
+            } catch {}
+          }
         }
       }
 

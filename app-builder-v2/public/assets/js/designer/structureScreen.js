@@ -1,5 +1,10 @@
 'use strict';
 
+const _typeLabels = {
+  text: 'Текст', number: 'Число', date: 'Дата', datetime: 'Дата/время',
+  boolean: 'Логическое', select: 'Список', relation: 'Связь'
+};
+
 const StructureScreen = {
   _selectedEntityId: null,
 
@@ -53,11 +58,12 @@ const StructureScreen = {
       const entity = await callApi(() => api.entities.get(entityId));
       const fields = await callApi(() => api.fields.list(entityId));
       const allEntities = await callApi(() => api.entities.list(AppState.currentProject.id));
-      this._renderDetail(detailEl, entity, fields, allEntities);
+      const relations = await callApi(() => api.relations.list(AppState.currentProject.id));
+      this._renderDetail(detailEl, entity, fields, allEntities, relations);
     } catch (e) { StateViews.error(detailEl, e.message); }
   },
 
-  _renderDetail(detailEl, entity, fields, allEntities) {
+  _renderDetail(detailEl, entity, fields, allEntities, relations) {
     const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
     let html = `
       <div class="card" style="margin-bottom:16px">
@@ -70,7 +76,7 @@ const StructureScreen = {
         </div>
         <p style="color:var(--text-secondary);font-size:13px">${esc(entity.description || '')}</p>
         <div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">
-          Display field ID: ${entity.display_field_id || '—'} | Owner field ID: ${entity.owner_field_id || '—'}
+          Поле отображения ID: ${entity.display_field_id || '—'} | Поле владельца ID: ${entity.owner_field_id || '—'}
         </div>
       </div>
       <div class="toolbar">
@@ -88,7 +94,7 @@ const StructureScreen = {
         html += `<tr>
           <td><code>${f.name}</code></td>
           <td>${esc(f.title)}</td>
-          <td><span class="badge badge-info">${f.type}</span>${f.type === 'relation' ? (() => { const tgt = allEntities.find(e => e.name === f.name.replace('_id', '') || e.name === f.name.replace('_id', 's')); return tgt ? ` → ${esc(tgt.title)}` : ''; })() : ''}</td>
+          <td><span class="badge badge-info">${_typeLabels[f.type] || f.type}</span>${f.type === 'relation' ? (() => { const rel = (relations || []).find(r => r.source_field_id === f.id); return rel ? ` → ${esc(rel.target_entity_title || '')}` : ''; })() : ''}</td>
           <td>${f.required ? 'Да' : '—'}</td>
           <td>${f.unique_value ? 'Да' : '—'}</td>
           <td>
@@ -104,14 +110,14 @@ const StructureScreen = {
     html += `
       <div style="margin-top:20px;display:flex;gap:16px">
         <div class="form-group">
-          <label>Display field</label>
+          <label>Поле отображения</label>
           <select data-action="setDisplayField" data-params='{"entityId":${entity.id}}' data-exempt="true" id="display-field-select">
             <option value="">—</option>
             ${fields.map(f => `<option value="${f.id}" ${entity.display_field_id === f.id ? 'selected' : ''}>${esc(f.title)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
-          <label>Owner field</label>
+          <label>Поле владельца</label>
           <select data-exempt="true" id="owner-field-select">
             <option value="">—</option>
             ${fields.filter(f => f.type === 'relation').map(f => `<option value="${f.id}" ${entity.owner_field_id === f.id ? 'selected' : ''}>${esc(f.title)}</option>`).join('')}
@@ -130,7 +136,7 @@ const StructureScreen = {
       displaySelect.onchange = async () => {
         try {
           await callApi(() => api.entities.update(entity.id, { display_field_id: parseInt(displaySelect.value) || null }));
-          Notifications.success('Display field обновлён');
+          Notifications.success('Поле отображения обновлено');
         } catch (e) { Notifications.error(e.message); }
       };
     }
@@ -138,7 +144,7 @@ const StructureScreen = {
       ownerSelect.onchange = async () => {
         try {
           await callApi(() => api.entities.update(entity.id, { owner_field_id: parseInt(ownerSelect.value) || null }));
-          Notifications.success('Owner field обновлён');
+          Notifications.success('Поле владельца обновлено');
         } catch (e) { Notifications.error(e.message); }
       };
     }
@@ -164,7 +170,7 @@ const StructureScreen = {
       <div class="modal-title">${isEdit ? 'Редактировать поле' : 'Добавить поле'}</div>
       <div class="form-group"><label>Системное имя (латиница)</label><input type="text" id="field-name" value="${isEdit ? existingField.name : ''}" ${isEdit ? 'disabled' : ''} placeholder="field_name" /></div>
       <div class="form-group"><label>Название</label><input type="text" id="field-title" value="${isEdit ? this._esc(existingField.title) : ''}" placeholder="Название поля" /></div>
-      <div class="form-group"><label>Тип</label><select id="field-type" ${isEdit ? 'disabled' : ''}>${types.map(t => `<option value="${t}" ${currentType === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Тип</label><select id="field-type" ${isEdit ? 'disabled' : ''}>${types.map(t => `<option value="${t}" ${currentType === t ? 'selected' : ''}>${_typeLabels[t] || t}</option>`).join('')}</select></div>
       <div class="form-group"><label><input type="checkbox" id="field-required" ${existingField && existingField.required ? 'checked' : ''} /> Обязательное</label></div>
       <div class="form-group"><label><input type="checkbox" id="field-unique" ${existingField && existingField.unique_value ? 'checked' : ''} /> Уникальное</label></div>
       <div class="form-group"><label>Значение по умолчанию</label><input type="text" id="field-default" value="${existingField && existingField.default_value ? existingField.default_value : ''}" /></div>

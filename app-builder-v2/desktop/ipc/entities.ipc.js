@@ -30,4 +30,9 @@ module.exports = function registerEntitiesIpc(services) {
     try { svc.deleteEntity(id); return ok(true); }
     catch (e) { return fail(e.code || 'ERROR', e.message); }
   });
+
+  ipcMain.handle('relations:list', async (_, projectId) => {
+    try { return ok(svc.listRelations(projectId)); }
+    catch (e) { return fail(e.code || 'ERROR', e.message); }
+  });
 };
