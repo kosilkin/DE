@@ -43,6 +43,8 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '..', 'public', 'index.html'));
 
   mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('ready-to-show', () => { mainWindow.focus(); });
+  mainWindow.webContents.on('did-finish-load', () => { mainWindow.webContents.focus(); });
 }
 
 app.whenReady().then(() => {
