@@ -1,0 +1,55 @@
+{
+  "appId": "com.appbuilder.v2",
+  "productName": "Конструктор ИС",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "desktop/**/*",
+    "src/**/*",
+    "public/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerLanguages": ["ru"],
+    "language": "1049"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Education"
+  },
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "category": "public.app-category.education"
+  },
+  "asar": true,
+  "npmRebuild": true
+}

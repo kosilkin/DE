@@ -1,0 +1,15 @@
+.import-wizard { max-width: 800px; }
+.import-step { margin-bottom: 20px; }
+.import-step-title { font-weight: 600; margin-bottom: 8px; }
+.import-preview { overflow-x: auto; max-height: 400px; }
+.import-preview table { font-size: 12px; }
+.import-mapping { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.import-mapping .arrow { color: var(--text-secondary); font-weight: bold; }
+.import-report { padding: 16px; background: #f8f9fa; border-radius: var(--radius); }
+.import-report .stat { font-weight: 600; }
+.import-report .errors-list { max-height: 200px; overflow-y: auto; font-size: 12px; color: var(--danger); margin-top: 8px; }
+
+.wizard-steps { display: flex; gap: 4px; margin-bottom: 20px; }
+.wizard-step { flex: 1; padding: 8px; text-align: center; background: var(--bg); border-radius: var(--radius); font-size: 12px; color: var(--text-secondary); }
+.wizard-step.active { background: var(--primary); color: #fff; }
+.wizard-step.done { background: #e8f5e9; color: var(--success); }

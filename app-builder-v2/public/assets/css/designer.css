@@ -1,0 +1,27 @@
+.designer-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.designer-tab { padding: 8px 20px; cursor: pointer; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s; }
+.designer-tab:hover { color: var(--text); }
+.designer-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.entity-list-item { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; background: var(--surface); cursor: pointer; transition: background .15s; }
+.entity-list-item:hover { background: #f0f4ff; }
+.entity-list-item.active { border-color: var(--primary); background: #e8f0fe; }
+.entity-list-item .eli-title { font-weight: 500; flex: 1; }
+.entity-list-item .eli-meta { font-size: 12px; color: var(--text-secondary); }
+
+.field-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+.field-row .fr-name { font-weight: 500; min-width: 120px; }
+.field-row .fr-type { color: var(--text-secondary); font-size: 12px; min-width: 80px; }
+.field-row .fr-flags { display: flex; gap: 4px; flex: 1; }
+
+.perm-table { font-size: 13px; }
+.perm-table th { font-size: 11px; }
+.perm-table input[type="checkbox"] { width: 16px; height: 16px; }
+.perm-table select { padding: 3px 6px; font-size: 12px; }
+
+.er-container { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; min-height: 300px; }
+.er-container svg { display: block; }
+
+.split-layout { display: flex; gap: 20px; }
+.split-left { width: 300px; flex-shrink: 0; }
+.split-right { flex: 1; min-width: 0; }
