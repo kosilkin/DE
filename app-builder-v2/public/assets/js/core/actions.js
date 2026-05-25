@@ -42,8 +42,6 @@ const Actions = {
 window.Actions = Actions;
 
 document.addEventListener('click', (e) => {
-  const tag = e.target.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'LABEL') return;
   const btn = e.target.closest('[data-action]');
   if (btn) {
     e.preventDefault();
