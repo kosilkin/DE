@@ -392,6 +392,29 @@ class ExportService {
       }
     }
 
+    // Import users (delete existing template users first, then recreate from export)
+    const existingUsers = this.users.listByProject(project.id);
+    for (const eu of existingUsers) {
+      try { this.users.delete(eu.id); } catch {}
+    }
+    for (const user of (imp.users || [])) {
+      const roleId = roleMap[user.role_id] || null;
+      try {
+        this.users.create({
+          project_id: project.id,
+          login: user.login,
+          password_hash: user.password_hash,
+          full_name: user.full_name || '',
+          phone: user.phone || '',
+          email: user.email || '',
+          role_id: roleId,
+          is_active: user.is_active !== undefined ? (user.is_active ? 1 : 0) : 1,
+          created_at: ts,
+          updated_at: ts,
+        });
+      } catch {}
+    }
+
     // Build relation field map: entityName -> [{fieldName, targetEntityName}]
     const relationFieldsMap = {};
     for (const rel of (imp.relations || [])) {

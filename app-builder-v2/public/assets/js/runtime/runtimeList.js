@@ -25,7 +25,7 @@ const RuntimeList = {
           const rel = relations.find(r => r.source_field_id === rf.id);
           if (rel) {
             try {
-              const opts = await callApi(() => api.runtime.relationOptions(rel.target_entity_id));
+              const opts = await callApi(() => api.runtime.relationOptions(rel.target_entity_id, rel.target_display_field_id || undefined));
               const map = {};
               for (const o of opts) map[o.id] = o.display;
               relationDisplayMap[rf.name] = map;
@@ -55,6 +55,7 @@ const RuntimeList = {
     html += `<button class="btn btn-sm" data-action="runtimeApplySearch">Найти</button>`;
     html += `<button class="btn btn-sm" data-action="runtimeToggleFilters">Фильтры</button>`;
     html += `<span class="toolbar-spacer"></span>`;
+    html += `<button class="btn btn-sm" data-action="runtimeImportExcel" data-params='{"entityId":${entity.id}}'>Импорт из Excel</button>`;
     html += `<button class="btn btn-primary btn-sm" data-action="runtimeCreate" data-params='{"entityId":${entity.id}}'>Создать запись</button>`;
     html += `</div>`;
 
@@ -62,7 +63,7 @@ const RuntimeList = {
 
     if (!records.length) {
       html += `<div class="empty-state"><div class="es-icon">📋</div><div class="es-text">Записей пока нет</div>`;
-      html += `<div class="es-actions"><button class="btn btn-primary" data-action="runtimeCreate" data-params='{"entityId":${entity.id}}'>Создать запись</button></div></div>`;
+      html += `<div class="es-actions"><button class="btn btn-primary" data-action="runtimeCreate" data-params='{"entityId":${entity.id}}'>Создать запись</button> <button class="btn" data-action="runtimeImportExcel" data-params='{"entityId":${entity.id}}'>Импорт из Excel</button></div></div>`;
     } else {
       html += '<div class="runtime-table-wrap"><table class="runtime-table"><thead><tr>';
       html += `<th data-action="runtimeSort" data-params='{"field":"id"}'>ID <span class="sort-arrow">${this._sortArrow('id')}</span></th>`;
@@ -167,5 +168,33 @@ Actions.register('runtimeDelete', async (params) => {
     await RuntimeList._load(DOM.$('#main-content'));
   } catch (e) { Notifications.error(e.message); }
 });
+
+Actions.register('runtimeImportExcel', (params) => {
+  ImportScreen._state = {
+    step: 0, filePath: null, preview: null, entityId: params.entityId,
+    mapping: {}, dryRunResult: null, importResult: null,
+    settings: { hasHeaders: true, headerRow: 1, dataStartRow: 2, trimSpaces: true, sheet: null },
+  };
+  ImportScreen._runtimeEntityId = params.entityId;
+  ImportScreen._runtimeCallback = async () => {
+    await RuntimeList._load(DOM.$('#main-content'));
+  };
+  const overlay = DOM.el('div', { className: 'modal-overlay' });
+  const modal = DOM.el('div', { className: 'modal', style: 'max-width:700px;max-height:80vh;overflow:auto' });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); ImportScreen._runtimeEntityId = null; } };
+  ImportScreen._runtimeOverlay = overlay;
+  ImportScreen._runtimeModal = modal;
+  _runtimeImportRender(modal, params.entityId);
+});
+
+async function _runtimeImportRender(container, entityId) {
+  const entities = [await callApi(() => api.entities.get(entityId))];
+  ImportScreen._state.entityId = entityId;
+  ImportScreen._renderWizard(container, entities);
+  const entitySelect = DOM.$('#import-entity', container);
+  if (entitySelect) entitySelect.disabled = true;
+}
 
 window.RuntimeList = RuntimeList;

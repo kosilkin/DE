@@ -57,8 +57,8 @@ module.exports = function registerRuntimeIpc(services) {
     } catch (e) { return fail(e.code || 'ERROR', e.message); }
   });
 
-  ipcMain.handle('runtime:relationOptions', async (_, targetEntityId) => {
-    try { return ok(svc.relationOptions(getCtx(), targetEntityId)); }
+  ipcMain.handle('runtime:relationOptions', async (_, targetEntityId, displayFieldId) => {
+    try { return ok(svc.relationOptions(getCtx(), targetEntityId, displayFieldId)); }
     catch (e) { return fail(e.code || 'ERROR', e.message); }
   });
 };
