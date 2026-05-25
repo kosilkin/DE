@@ -50,6 +50,13 @@ module.exports = function registerRuntimeIpc(services) {
     catch (e) { return fail(e.code || 'ERROR', e.message); }
   });
 
+  ipcMain.handle('runtime:deleteAllRecords', async (_, entityId) => {
+    try {
+      const count = svc.deleteAllRecords(getCtx(), entityId);
+      return ok(count);
+    } catch (e) { return fail(e.code || 'ERROR', e.message); }
+  });
+
   ipcMain.handle('runtime:relationOptions', async (_, targetEntityId) => {
     try { return ok(svc.relationOptions(getCtx(), targetEntityId)); }
     catch (e) { return fail(e.code || 'ERROR', e.message); }

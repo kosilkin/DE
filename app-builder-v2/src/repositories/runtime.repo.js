@@ -85,6 +85,12 @@ class RuntimeRepo {
     this.db.prepare(`DELETE FROM ${tbl} WHERE id = ?`).run(id);
   }
 
+  deleteAllRecords(projectId, entityName) {
+    const tbl = physicalTableName(projectId, entityName);
+    const info = this.db.prepare(`DELETE FROM ${tbl}`).run();
+    return info.changes;
+  }
+
   tableExists(projectId, entityName) {
     const tbl = physicalTableName(projectId, entityName);
     const row = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(tbl);

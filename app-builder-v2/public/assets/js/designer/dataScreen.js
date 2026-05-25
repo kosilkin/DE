@@ -23,6 +23,8 @@ const DataScreen = {
         <select id="data-entity-select" data-exempt="true">
           ${entities.map(e => `<option value="${e.id}">${esc(e.title)}</option>`).join('')}
         </select>
+        <span class="toolbar-spacer"></span>
+        <button class="btn btn-sm btn-danger" data-action="deleteAllData">Удалить все данные</button>
       </div>
       <div id="data-table-content"></div>
     `;
@@ -61,5 +63,18 @@ const DataScreen = {
     } catch (e) { StateViews.error(el, e.message); }
   },
 };
+
+Actions.register('deleteAllData', async () => {
+  const select = DOM.$('#data-entity-select');
+  if (!select) return;
+  const entityId = parseInt(select.value);
+  const entityTitle = select.options[select.selectedIndex].text;
+  if (!confirm(`Вы уверены, что хотите удалить ВСЕ данные из таблицы "${entityTitle}"? Это действие необратимо.`)) return;
+  try {
+    const count = await callApi(() => api.runtime.deleteAllRecords(entityId));
+    Notifications.success(`Удалено записей: ${count}`);
+    DataScreen._loadData(entityId);
+  } catch (e) { Notifications.error(e.message); }
+});
 
 window.DataScreen = DataScreen;
