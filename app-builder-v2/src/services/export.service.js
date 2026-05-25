@@ -192,6 +192,227 @@ class ExportService {
     return outputDir;
   }
 
+  exportProjectDev(projectId, filePath) {
+    const project = this.projects.getById(projectId);
+    if (!project) throw new Error('Проект не найден');
+
+    const entities = this.entities.listByProject(projectId);
+    const entitiesData = entities.map(e => ({
+      ...e,
+      fields: this.fields.listByEntity(e.id)
+    }));
+
+    const relations = this.db.prepare(
+      `SELECT r.* FROM relations r JOIN entities e ON r.source_entity_id = e.id WHERE e.project_id = ?`
+    ).all(projectId);
+
+    const roles = this.roles.listByProject(projectId);
+    const users = this.users.listByProject(projectId);
+
+    const tablePermissions = [];
+    const fieldPermissions = [];
+    for (const entity of entities) {
+      for (const role of roles) {
+        const tp = this.db.prepare('SELECT * FROM table_permissions WHERE entity_id = ? AND role_id = ?').get(entity.id, role.id);
+        if (tp) tablePermissions.push(tp);
+        const fps = this.db.prepare(
+          'SELECT fp.* FROM field_permissions fp JOIN fields f ON fp.field_id = f.id WHERE f.entity_id = ? AND fp.role_id = ?'
+        ).all(entity.id, role.id);
+        fieldPermissions.push(...fps);
+      }
+    }
+
+    const data = {};
+    for (const entity of entities) {
+      if (this.runtime.tableExists(projectId, entity.name)) {
+        data[entity.name] = this.runtime.listRecords(projectId, entity.name, {
+          orderBy: 'id ASC', limit: 100000, offset: 0
+        });
+      }
+    }
+
+    const exportData = {
+      version: '2.0',
+      exportedAt: new Date().toISOString(),
+      project: { title: project.title, description: project.description, template_code: project.template_code, login_enabled: project.login_enabled },
+      entities: entitiesData,
+      relations,
+      roles,
+      users,
+      tablePermissions,
+      fieldPermissions,
+      data,
+    };
+
+    fs.writeFileSync(filePath, JSON.stringify(exportData, null, 2));
+    return filePath;
+  }
+
+  importProjectDev(filePath, projectsService) {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const imp = JSON.parse(raw);
+    if (!imp.project || !imp.entities) throw new Error('Неверный формат файла экспорта');
+
+    const { now } = require('../utils/dates');
+    const ts = now();
+
+    // Create project
+    const project = projectsService.create({
+      title: imp.project.title + ' (импорт)',
+      description: imp.project.description || '',
+      template_code: '',
+    });
+
+    // Update login_enabled if present
+    if (imp.project.login_enabled !== undefined) {
+      this.projects.update(project.id, { login_enabled: imp.project.login_enabled, updated_at: ts });
+    }
+
+    // ID mapping: old -> new
+    const entityMap = {};
+    const fieldMap = {};
+    const roleMap = {};
+
+    // Map existing roles
+    const existingRoles = this.roles.listByProject(project.id);
+    for (const er of existingRoles) {
+      const matching = (imp.roles || []).find(r => r.code === er.code);
+      if (matching) roleMap[matching.id] = er.id;
+    }
+
+    // Create additional roles
+    for (const role of (imp.roles || [])) {
+      if (roleMap[role.id]) continue;
+      try {
+        const newRole = this.roles.create({
+          project_id: project.id, code: role.code, title: role.title,
+          description: role.description || '', is_system: role.is_system ? 1 : 0,
+          sort_order: role.sort_order || 0, created_at: ts, updated_at: ts
+        });
+        roleMap[role.id] = newRole.id;
+      } catch { /* duplicate code, skip */ }
+    }
+
+    // Delete template entities (created by projectsService.create)
+    const templateEntities = this.entities.listByProject(project.id);
+    for (const te of templateEntities) {
+      try {
+        this.runtime.dropPhysicalTable(project.id, te.name);
+        this.entities.delete(te.id);
+      } catch {}
+    }
+
+    // Create entities and fields
+    const { sqlTypeFor } = require('../db/schema');
+    for (const entityData of (imp.entities || [])) {
+      const entity = this.entities.create({
+        project_id: project.id, name: entityData.name, title: entityData.title,
+        description: entityData.description || '', kind: entityData.kind || 'user',
+        sort_order: entityData.sort_order || 0, created_at: ts, updated_at: ts
+      });
+      entityMap[entityData.id] = entity.id;
+
+      this.runtime.createPhysicalTable(project.id, entityData.name, []);
+
+      for (const fieldData of (entityData.fields || [])) {
+        const field = this.fields.create({
+          entity_id: entity.id, name: fieldData.name, title: fieldData.title,
+          type: fieldData.type, required: fieldData.required ? 1 : 0,
+          unique_value: fieldData.unique_value ? 1 : 0,
+          default_value: fieldData.default_value || null,
+          options_json: fieldData.options_json || null,
+          validation_json: fieldData.validation_json || null,
+          is_system: fieldData.is_system ? 1 : 0,
+          sort_order: fieldData.sort_order || 0, created_at: ts, updated_at: ts
+        });
+        fieldMap[fieldData.id] = field.id;
+
+        this.runtime.addColumn(project.id, entityData.name, {
+          name: fieldData.name, sqlType: sqlTypeFor(fieldData.type),
+          defaultValue: fieldData.type === 'boolean' ? '0' : undefined
+        });
+
+        if (fieldData.unique_value) {
+          this.runtime.createIndex(project.id, entityData.name, fieldData.name, true);
+        }
+        if (fieldData.type === 'relation') {
+          this.runtime.createIndex(project.id, entityData.name, fieldData.name, false);
+        }
+      }
+
+      // Set display/owner fields
+      if (entityData.display_field_id && fieldMap[entityData.display_field_id]) {
+        this.entities.update(entity.id, { display_field_id: fieldMap[entityData.display_field_id], updated_at: ts });
+      }
+      if (entityData.owner_field_id && fieldMap[entityData.owner_field_id]) {
+        this.entities.update(entity.id, { owner_field_id: fieldMap[entityData.owner_field_id], updated_at: ts });
+      }
+    }
+
+    // Create relations
+    for (const rel of (imp.relations || [])) {
+      const srcEntity = entityMap[rel.source_entity_id];
+      const srcField = fieldMap[rel.source_field_id];
+      const tgtEntity = entityMap[rel.target_entity_id];
+      const tgtDisplay = rel.target_display_field_id ? fieldMap[rel.target_display_field_id] : null;
+      if (srcEntity && srcField && tgtEntity) {
+        this.db.prepare(
+          `INSERT INTO relations (source_entity_id, source_field_id, target_entity_id, target_display_field_id, on_delete_policy, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).run(srcEntity, srcField, tgtEntity, tgtDisplay, rel.on_delete_policy || 'restrict', ts, ts);
+      }
+    }
+
+    // Import table permissions
+    for (const tp of (imp.tablePermissions || [])) {
+      const entityId = entityMap[tp.entity_id];
+      const roleId = roleMap[tp.role_id];
+      if (entityId && roleId) {
+        try {
+          this.db.prepare('SELECT * FROM table_permissions WHERE entity_id = ? AND role_id = ?').get(entityId, roleId);
+          this.db.prepare(
+            `INSERT OR REPLACE INTO table_permissions (entity_id, role_id, can_create, can_read, can_update, can_delete, can_import, can_export, read_scope, update_scope, delete_scope, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(entityId, roleId, tp.can_create, tp.can_read, tp.can_update, tp.can_delete, tp.can_import, tp.can_export, tp.read_scope, tp.update_scope, tp.delete_scope, ts, ts);
+        } catch {}
+      }
+    }
+
+    // Import field permissions
+    for (const fp of (imp.fieldPermissions || [])) {
+      const fieldId = fieldMap[fp.field_id];
+      const roleId = roleMap[fp.role_id];
+      if (fieldId && roleId) {
+        try {
+          this.db.prepare(
+            `INSERT OR REPLACE INTO field_permissions (field_id, role_id, can_view, can_create, can_update, show_in_list, show_in_form, mask_policy, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(fieldId, roleId, fp.can_view, fp.can_create, fp.can_update, fp.show_in_list, fp.show_in_form, fp.mask_policy || '', ts, ts);
+        } catch {}
+      }
+    }
+
+    // Import data
+    for (const entityData of (imp.entities || [])) {
+      const records = (imp.data || {})[entityData.name];
+      if (!records || !records.length) continue;
+      for (const rec of records) {
+        const cleanRec = {};
+        for (const [k, v] of Object.entries(rec)) {
+          if (k === 'id') continue;
+          cleanRec[k] = v;
+        }
+        if (!cleanRec.created_at) cleanRec.created_at = ts;
+        if (!cleanRec.updated_at) cleanRec.updated_at = ts;
+        try {
+          this.runtime.insertRecord(project.id, entityData.name, cleanRec);
+        } catch {}
+      }
+    }
+
+    return project;
+  }
+
   _createShortcut(outputDir, project) {
     const appDir = path.resolve(path.join(__dirname, '..', '..'));
     const electronPath = this._findElectronExe(appDir);

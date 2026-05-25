@@ -8,6 +8,32 @@ const fs = require('fs');
 module.exports = function registerExportIpc(services, mainWindow) {
   const svc = services.export;
 
+  ipcMain.handle('export:projectDev', async (_, projectId) => {
+    try {
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Экспорт проекта для разработчика',
+        defaultPath: `project_${projectId}_dev.json`,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (result.canceled) return ok(null);
+      const filePath = svc.exportProjectDev(projectId, result.filePath);
+      return ok(filePath);
+    } catch (e) { return fail(e.code || 'ERROR', e.message); }
+  });
+
+  ipcMain.handle('export:importProjectDev', async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Импорт проекта разработчика',
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        properties: ['openFile'],
+      });
+      if (result.canceled || !result.filePaths.length) return ok(null);
+      const project = svc.importProjectDev(result.filePaths[0], services.projects);
+      return ok(project);
+    } catch (e) { return fail(e.code || 'ERROR', e.message); }
+  });
+
   ipcMain.handle('export:project', async (_, projectId) => {
     try {
       const result = await dialog.showOpenDialog(mainWindow, {

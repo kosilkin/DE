@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('appApi', {
     createRecord: (entityId, data) => invoke('runtime:createRecord', entityId, data),
     updateRecord: (entityId, recordId, data) => invoke('runtime:updateRecord', entityId, recordId, data),
     deleteRecord: (entityId, recordId) => invoke('runtime:deleteRecord', entityId, recordId),
+    deleteAllRecords: (entityId) => invoke('runtime:deleteAllRecords', entityId),
     relationOptions: (targetEntityId) => invoke('runtime:relationOptions', targetEntityId),
   },
   import: {
@@ -72,6 +73,8 @@ contextBridge.exposeInMainWorld('appApi', {
   },
   export: {
     project: (projectId) => invoke('export:project', projectId),
+    projectDev: (projectId) => invoke('export:projectDev', projectId),
+    importProjectDev: () => invoke('export:importProjectDev'),
     sql: (projectId) => invoke('export:sql', projectId),
     er: (projectId) => invoke('export:er', projectId),
     createShortcut: () => invoke('export:createShortcut'),
