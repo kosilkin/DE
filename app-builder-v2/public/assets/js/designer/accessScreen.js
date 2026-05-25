@@ -96,7 +96,7 @@ const AccessScreen = {
       const permMap = {};
       for (const p of perms) permMap[p.role_id] = p;
 
-      let html = '<table class="perm-table"><thead><tr><th>Роль</th><th>Чтение</th><th>Создание</th><th>Изменение</th><th>Удаление</th><th>Импорт</th><th>Экспорт</th><th>Чтение scope</th><th>Изменение scope</th><th>Удаление scope</th><th></th></tr></thead><tbody>';
+      let html = '<table class="perm-table"><thead><tr><th>Роль</th><th>Чтение</th><th>Создание</th><th>Изменение</th><th>Удаление</th><th>Импорт</th><th>Экспорт</th><th>Область чтения</th><th>Область изменения</th><th>Область удаления</th><th></th></tr></thead><tbody>';
       for (const role of roles) {
         const p = permMap[role.id] || {};
         html += `<tr data-role-id="${role.id}" data-entity-id="${entityId}">
