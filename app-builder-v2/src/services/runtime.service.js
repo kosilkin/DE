@@ -199,13 +199,17 @@ class RuntimeService {
     return this.runtime.deleteAllRecords(entity.project_id, entity.name);
   }
 
-  relationOptions(ctx, targetEntityId) {
+  relationOptions(ctx, targetEntityId, displayFieldId) {
     const entity = this.entities.getById(targetEntityId);
     if (!entity) return [];
 
-    const displayField = entity.display_field_id
-      ? this.fields.getById(entity.display_field_id)
-      : null;
+    let displayField = null;
+    if (displayFieldId) {
+      displayField = this.fields.getById(displayFieldId);
+    }
+    if (!displayField && entity.display_field_id) {
+      displayField = this.fields.getById(entity.display_field_id);
+    }
 
     const records = this.runtime.listRecords(entity.project_id, entity.name, {
       orderBy: 'id ASC', limit: 1000, offset: 0

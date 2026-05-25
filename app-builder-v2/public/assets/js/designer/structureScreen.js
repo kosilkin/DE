@@ -94,7 +94,7 @@ const StructureScreen = {
         html += `<tr>
           <td><code>${f.name}</code></td>
           <td>${esc(f.title)}</td>
-          <td><span class="badge badge-info">${_typeLabels[f.type] || f.type}</span>${f.type === 'relation' ? (() => { const rel = (relations || []).find(r => r.source_field_id === f.id); return rel ? ` → ${esc(rel.target_entity_title || '')}` : ''; })() : ''}</td>
+          <td><span class="badge badge-info">${_typeLabels[f.type] || f.type}</span>${f.type === 'relation' ? (() => { const rel = (relations || []).find(r => r.source_field_id === f.id); return rel ? ` → ${esc(rel.target_entity_title || '')}${rel.target_display_field_title ? ' (' + esc(rel.target_display_field_title) + ')' : ''}` : ''; })() : ''}</td>
           <td>${f.required ? 'Да' : '—'}</td>
           <td>${f.unique_value ? 'Да' : '—'}</td>
           <td>
@@ -176,6 +176,7 @@ const StructureScreen = {
       <div class="form-group"><label>Значение по умолчанию</label><input type="text" id="field-default" value="${existingField && existingField.default_value ? existingField.default_value : ''}" /></div>
       <div class="form-group" id="options-group" style="display:none"><label>Варианты (через запятую)</label><input type="text" id="field-options" value="" /></div>
       <div class="form-group" id="target-entity-group" style="display:none"><label>Целевая таблица</label><select id="field-target-entity"></select></div>
+      <div class="form-group" id="target-display-field-group" style="display:none"><label>Поле для отображения</label><select id="field-target-display"></select></div>
       <div class="form-group" id="validation-group">
         <label>Валидация (JSON)</label>
         <textarea id="field-validation" placeholder='{"minLength": 1, "maxLength": 100}'>${existingField && existingField.validation_json ? existingField.validation_json : ''}</textarea>
@@ -191,14 +192,27 @@ const StructureScreen = {
     const typeSelect = DOM.$('#field-type', modal);
     const optionsGroup = DOM.$('#options-group', modal);
     const targetGroup = DOM.$('#target-entity-group', modal);
+    const displayFieldGroup = DOM.$('#target-display-field-group', modal);
+
+    const loadDisplayFields = async (targetEntityId) => {
+      const displaySelect = DOM.$('#field-target-display', modal);
+      if (!targetEntityId) { displaySelect.innerHTML = ''; displayFieldGroup.style.display = 'none'; return; }
+      const fields = await callApi(() => api.fields.list(targetEntityId));
+      displaySelect.innerHTML = fields.map(f => `<option value="${f.id}">${this._esc(f.title)} (${f.name})</option>`).join('');
+      displayFieldGroup.style.display = '';
+    };
 
     const updateTypeFields = async () => {
       const t = typeSelect.value;
       optionsGroup.style.display = t === 'select' ? '' : 'none';
       targetGroup.style.display = t === 'relation' ? '' : 'none';
+      displayFieldGroup.style.display = t === 'relation' ? '' : 'none';
       if (t === 'relation') {
         const entities = await callApi(() => api.entities.list(AppState.currentProject.id));
-        DOM.$('#field-target-entity', modal).innerHTML = entities.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+        const targetSelect = DOM.$('#field-target-entity', modal);
+        targetSelect.innerHTML = entities.map(e => `<option value="${e.id}">${this._esc(e.title)}</option>`).join('');
+        targetSelect.onchange = () => loadDisplayFields(parseInt(targetSelect.value));
+        if (entities.length) await loadDisplayFields(entities[0].id);
       }
     };
     typeSelect.onchange = updateTypeFields;
@@ -231,6 +245,8 @@ const StructureScreen = {
       }
       if (typeSelect.value === 'relation') {
         data.target_entity_id = parseInt(DOM.$('#field-target-entity', modal).value);
+        const displayFieldVal = DOM.$('#field-target-display', modal).value;
+        if (displayFieldVal) data.target_display_field_id = parseInt(displayFieldVal);
       }
       try {
         if (isEdit) {

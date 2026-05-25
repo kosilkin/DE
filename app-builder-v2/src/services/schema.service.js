@@ -97,13 +97,17 @@ class SchemaService {
     if (data.type === 'relation') {
       this.runtime.createIndex(entity.project_id, entity.name, data.name, false);
       if (data.target_entity_id) {
-        const targetDisplayField = this.db.prepare(
-          'SELECT id FROM fields WHERE entity_id = ? ORDER BY sort_order, id LIMIT 1'
-        ).get(data.target_entity_id);
+        let displayFieldId = data.target_display_field_id || null;
+        if (!displayFieldId) {
+          const targetDisplayField = this.db.prepare(
+            'SELECT id FROM fields WHERE entity_id = ? ORDER BY sort_order, id LIMIT 1'
+          ).get(data.target_entity_id);
+          displayFieldId = targetDisplayField ? targetDisplayField.id : null;
+        }
         this.db.prepare(
           `INSERT INTO relations (source_entity_id, source_field_id, target_entity_id, target_display_field_id, on_delete_policy, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).run(entityId, field.id, data.target_entity_id, targetDisplayField ? targetDisplayField.id : null, data.on_delete_policy || 'restrict', ts, ts);
+        ).run(entityId, field.id, data.target_entity_id, displayFieldId, data.on_delete_policy || 'restrict', ts, ts);
       }
     }
 
@@ -139,11 +143,13 @@ class SchemaService {
     return this.db.prepare(
       `SELECT r.*, se.name as source_entity_name, se.title as source_entity_title,
               sf.name as source_field_name, sf.title as source_field_title,
-              te.name as target_entity_name, te.title as target_entity_title
+              te.name as target_entity_name, te.title as target_entity_title,
+              df.name as target_display_field_name, df.title as target_display_field_title
        FROM relations r
        JOIN entities se ON r.source_entity_id = se.id
        JOIN fields sf ON r.source_field_id = sf.id
        JOIN entities te ON r.target_entity_id = te.id
+       LEFT JOIN fields df ON r.target_display_field_id = df.id
        WHERE se.project_id = ?
        ORDER BY se.sort_order, r.id`
     ).all(projectId);

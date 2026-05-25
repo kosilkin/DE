@@ -81,7 +81,7 @@ const RuntimeForm = {
           const rel = relations.find(r => r.source_field_id === rf.id);
           if (rel) {
             try {
-              const options = await callApi(() => api.runtime.relationOptions(rel.target_entity_id));
+              const options = await callApi(() => api.runtime.relationOptions(rel.target_entity_id, rel.target_display_field_id || undefined));
               sel.innerHTML = '<option value="">— выберите —</option>';
               for (const opt of options) {
                 const selected = record && record[rf.name] == opt.id ? 'selected' : '';

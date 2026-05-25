@@ -90,6 +90,17 @@ const ImportScreen = {
     if (s.step === 2) this._renderMapping(container);
   },
 
+  async _rerender() {
+    if (this._runtimeModal) {
+      const entities = [await callApi(() => api.entities.get(this._state.entityId))];
+      this._renderWizard(this._runtimeModal, entities);
+      const entitySelect = DOM.$('#import-entity', this._runtimeModal);
+      if (entitySelect) entitySelect.disabled = true;
+    } else {
+      this._renderWizard(DOM.$('#main-content'), await callApi(() => api.entities.list(AppState.currentProject.id)));
+    }
+  },
+
   _readSettingsFromUI() {
     const s = this._state;
     const sheetSel = DOM.$('#import-sheet');
@@ -160,7 +171,7 @@ Actions.register('importPickFile', async () => {
   ImportScreen._state.preview = preview;
   ImportScreen._state.settings.sheet = preview.sheetName;
   ImportScreen._state.step = 1;
-  ImportScreen._renderWizard(DOM.$('#main-content'), await callApi(() => api.entities.list(AppState.currentProject.id)));
+  await ImportScreen._rerender();
 });
 
 Actions.register('importNext', async () => {
@@ -194,12 +205,12 @@ Actions.register('importNext', async () => {
     opts.dryRun = true;
     s.dryRunResult = await callApi(() => api.import.runEntityImport(s.entityId, s.filePath, opts));
   }
-  ImportScreen._renderWizard(DOM.$('#main-content'), await callApi(() => api.entities.list(AppState.currentProject.id)));
+  await ImportScreen._rerender();
 });
 
 Actions.register('importBack', async () => {
   ImportScreen._state.step = Math.max(0, ImportScreen._state.step - 1);
-  ImportScreen._renderWizard(DOM.$('#main-content'), await callApi(() => api.entities.list(AppState.currentProject.id)));
+  await ImportScreen._rerender();
 });
 
 Actions.register('importRun', async () => {
@@ -210,11 +221,20 @@ Actions.register('importRun', async () => {
     s.importResult = await callApi(() => api.import.runEntityImport(s.entityId, s.filePath, opts));
     s.step = 4;
     Notifications.success(`Импортировано: ${s.importResult.imported}`);
-    ImportScreen._renderWizard(DOM.$('#main-content'), await callApi(() => api.entities.list(AppState.currentProject.id)));
+    if (ImportScreen._runtimeCallback) await ImportScreen._runtimeCallback();
+    await ImportScreen._rerender();
   } catch (e) { Notifications.error(e.message); }
 });
 
-Actions.register('importReset', () => {
+Actions.register('importReset', async () => {
+  if (ImportScreen._runtimeOverlay) {
+    ImportScreen._runtimeOverlay.remove();
+    ImportScreen._runtimeModal = null;
+    ImportScreen._runtimeOverlay = null;
+    ImportScreen._runtimeEntityId = null;
+    ImportScreen._runtimeCallback = null;
+    return;
+  }
   ImportScreen._state = {
     step: 0, filePath: null, preview: null, entityId: ImportScreen._state.entityId,
     mapping: {}, dryRunResult: null, importResult: null,

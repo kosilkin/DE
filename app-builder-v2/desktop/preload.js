@@ -62,7 +62,7 @@ contextBridge.exposeInMainWorld('appApi', {
     updateRecord: (entityId, recordId, data) => invoke('runtime:updateRecord', entityId, recordId, data),
     deleteRecord: (entityId, recordId) => invoke('runtime:deleteRecord', entityId, recordId),
     deleteAllRecords: (entityId) => invoke('runtime:deleteAllRecords', entityId),
-    relationOptions: (targetEntityId) => invoke('runtime:relationOptions', targetEntityId),
+    relationOptions: (targetEntityId, displayFieldId) => invoke('runtime:relationOptions', targetEntityId, displayFieldId),
   },
   import: {
     pickExcelFile: () => invoke('import:pickExcelFile'),
